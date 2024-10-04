@@ -1,6 +1,4 @@
-# Script 1 of Xenium Seurat Transcript Processing Pipeline
-# Last updated: 04Oct2024
-# Author: jrose
+# Script 1 of Santangelo lab Xenium Seurat Transcript Processing Pipeline
 
 # This script covers:
 #       1. Reading in Xenium data from onboard analysis output folders
@@ -10,11 +8,18 @@
 #       5. Count Normalization
 #       6. Dimensionaltiy reduction (PCA)
 
+# Description: This script performs the initial preprocessing steps for processing transcipt data from 10x Xenium experiments using the Seurat package. It is meant to be paired with Xen_Suerat_ClustAnnot.R for complete analysis
 
+# Usage:
 
+# Inputs:
+#     - Manifest file (.csv) with 'run_name', 'experiment', 'condition', 'xen_dir', 'alt_input', and 'alt_input_dir' columns
+
+# Outputs:
+
+# Last updated: 04Oct2024
+# Author: jrose
 #################################################
-
-
 library(Seurat)
 library(tidyverse)
 library(future)
@@ -22,6 +27,23 @@ library(clustree)
 library(spacexr)
 library(scBubbletree)
 library(here)
-library(DESeq2)
-library(renv)
+source(here("src", "Xen_Seurat_functions.R"))
 
+set.seed(1984)
+
+outdir <- "output"
+
+man_file <- "sample_manifest.csv"
+manifest <- read_csv(here(man_file))
+
+objs <- LoadMultiXenium(manifest)
+#^Custom LoadXenium() wrapper, resturns list of SeuratObjects
+
+#cellstats <- XenCellStats()
+#^ Get summary statistics for each run
+
+for (i in 1:length(objs)){
+  ImageDimPlot(objs[[i]], fov="fov", border.size=NA)
+  ggsave(here(outdir,"images", paste(names(objs)[i], "fullimg.png",sep=".")), dpi="retina", height=6, width=7)
+}
+#^Generate full image plots for each run
