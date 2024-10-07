@@ -20,6 +20,8 @@
 # Last updated: 04Oct2024
 # Author: jrose
 #################################################
+#Set up
+
 library(Seurat)
 library(tidyverse)
 library(future)
@@ -27,23 +29,31 @@ library(clustree)
 library(spacexr)
 library(scBubbletree)
 library(here)
-source(here("src", "Xen_Seurat_functions.R"))
+source(here("src", "Xen_Seurat_functions.R"))  #accompanying custom functions
 
 set.seed(1984)
 
-outdir <- "output"
+experiment_name = "Abbie_Lung"
 
 man_file <- "sample_manifest.csv"
-manifest <- read_csv(here(man_file))
+manifest <- read_csv(here(man_file)) # Get run manifest
 
-objs <- LoadMultiXenium(manifest)
-#^Custom LoadXenium() wrapper, resturns list of SeuratObjects
+outdir <- "output"
+prepOutDir(outdir=outdir, manifest=manifest) # Prepare output dir structure
 
-#cellstats <- XenCellStats()
-#^ Get summary statistics for each run
+#################################################
+#Module 1 load data and generate basic qc stats
+
+objs <- LoadMultiXenium(manifest) # Custom LoadXenium() wrapper, resturns list of SeuratObjects
+
+cellstats <- do.call(rbind, lapply(objs, XenSeuratStats)) #Summary statistics for each run
+write.csv(cellstats, file=here(outdir, "qc", paste0(experiment_name,"_","cellstats.csv")))
 
 for (i in 1:length(objs)){
   ImageDimPlot(objs[[i]], fov="fov", border.size=NA)
-  ggsave(here(outdir,"images", paste(names(objs)[i], "fullimg.png",sep=".")), dpi="retina", height=6, width=7)
+  ggsave(here(outdir,"qc","images", paste(names(objs)[i], "fullimg.png",sep=".")), dpi="retina", height=6, width=7)
 }
 #^Generate full image plots for each run
+
+#################################################
+#Module 2 Cell level QC
