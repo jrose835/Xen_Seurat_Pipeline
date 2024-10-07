@@ -39,14 +39,14 @@ man_file <- "sample_manifest.csv"
 manifest <- read_csv(here(man_file)) # Get run manifest
 
 outdir <- "output"
-prepOutDir(outdir=outdir, manifest=manifest) # Prepare output dir structure
+prepOutDir(outdir=outdir, manifest=manifest) # Prepare output dir structure. Custom func
 
 #################################################
 #Module 1 load data and generate basic qc stats
 
 objs <- LoadMultiXenium(manifest) # Custom LoadXenium() wrapper, resturns list of SeuratObjects
 
-cellstats <- do.call(rbind, lapply(objs, XenSeuratStats)) #Summary statistics for each run
+cellstats <- do.call(rbind, lapply(objs, XenSeuratStats)) #Summary statistics for each run. Custom XenSeuratStats func
 write.csv(cellstats, file=here(outdir, "qc", paste0(experiment_name,"_","cellstats.csv")))
 
 for (i in 1:length(objs)){
