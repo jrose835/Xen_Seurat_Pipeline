@@ -10,6 +10,7 @@ library(tidyverse)
 library(future)
 library(clustree)
 library(spacexr)
+library(nanoparquet)
 library(scBubbletree)
 library(here)
 
@@ -121,3 +122,104 @@ dir.create.check <- function(path, ...) {
    }
 }
 #################################################
+# AppendAreaParquet
+# module 2 function. Adds cell and nucleus area data for each cell from parquet files
+# input: SeuratObject, path to xenium output directory
+# output: SeuratObject with new metadata appended 
+
+AppendAreaParquet <- function(obj, xen_dir){
+  
+  parquet_file <- here(xen_dir, "cells.parquet")
+  add_dat <- read_parquet(parquet_file) %>% select(cell_id, ends_with("_area"))
+  
+  add_dat <- add_dat[match(add_dat$cell_id, rownames(obj[[]])),] #making sure order of cells is the same
+  
+  obj$cell_area <- add_dat$cell_area
+  obj$nucleus_area <- add_dat$nucleus_area
+  
+  return(obj)
+  
+}
+
+#################################################
+# AppendIFdata
+# module 2 function. Add MFI data from immunofluroesence pipeline .txt file
+# input: SeuratObject, path to IF data
+# output: SeuratObject with MFI data
+
+AppendIFdata <- function(obj, IF_data_path){
+  
+  add_dat <- read_tsv(IF_data_path)
+  
+  add_dat <- add_dat[match(add_dat$Name, rownames(obj[[]])),] #making sure order of cells is the same
+  
+  obj$MFI <- add_dat$MFI
+  
+  return(obj)
+}
+
+#################################################
+# CellQCPlots
+# module 3 function. Plot qc plots related to nCounts and nFeatures
+# input: SeuratObject, thresholds for nCount and nFeature
+# output: List of qc plots
+
+CellQCPlots <- function(obj, min_nCount, min_nFeature, min_cellarea, max_cellarea){
+  
+  meta <- obj[[]] #extract meta data
+  run_name <- unique(meta$run_name)
+  
+  plots <- list()
+  
+  plots[["nCount_threshold_bar"]] <- ThresholdBar(obj)
+  
+  plots[["nFeat_threshold_bar"]] <- ThresholdBar(obj,  assay="nFeature_Xenium", from=5, to=40, by=5)
+  
+  plots[["count_feat_scatter"]] <- ggplot(meta, aes(x=nCount_Xenium, y=nFeature_Xenium)) + 
+                                        geom_point() + 
+                                        #geom_density_2d() + 
+                                        geom_hline(yintercept = min_nFeature, type="dashed",color="red") +
+                                        geom_vline(xintercept = min_nCount, type="dashed", color="red") +
+                                        labs(x="Counts per cell", y="Genes per cell") +
+                                        theme_light()
+  
+  plots[["area_hist"]] <- ggplot(meta, aes(x=cell_area)) + 
+                              geom_histogram(binwidth = 10) + 
+                              geom_vline(xintercept=min_cellarea,type="dashed",color="red") + 
+                              geom_vline(xintercept=max_cellarea,type="dashed",color="red") + 
+                              theme_light()
+  return(plots)
+  # UNDER CONSTRUCTION
+  
+}
+
+#################################################
+# ThresholdBar
+# module 3 subfunction. Plot effects of changing thresholds
+# input: 
+# output: 
+
+ThresholdBar <- function(obj, from=10, to=200, by=20, assay="nCount_Xenium"){
+  thresholds <- seq(from=from, to=to, by=by)
+  
+  filter_outputs <- data.frame(threshold=thresholds, kept=rep(NA, length(thresholds)), removed=rep(NA, length(thresholds)))
+  
+  for (i in 1:length(thresholds)){
+    tmp <- table(obj[["nCount_Xenium"]]< thresholds[i])
+    filter_outputs$kept[i] <- tmp[["FALSE"]]
+    filter_outputs$removed[i] <- tmp[["TRUE"]]
+  }
+  
+  plot <- pivot_longer(filter_outputs, cols=c('kept', "removed")) %>%
+    #subset(name=="removed") %>%
+    ggplot(aes(x=threshold, y=value)) + 
+    labs(y="Number of Cells", x="threshold", title=assay) +
+    #geom_line() +
+    geom_col(aes(fill=name)) + 
+    theme_light()
+  
+  return(plot)
+}
+
+#################################################
+# 
