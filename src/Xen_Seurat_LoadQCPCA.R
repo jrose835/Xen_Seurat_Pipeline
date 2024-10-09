@@ -15,6 +15,9 @@
 # Inputs:
 #     - Manifest file (.csv) with 'run_name', 'experiment', 'condition', 'xen_dir', 'alt_input', and 'alt_input_dir' columns
 
+# Parameters:
+#
+
 # Outputs:
 
 # Last updated: 08Oct2024
@@ -34,11 +37,13 @@ source(here("src", "Xen_Seurat_functions.R"))  #accompanying custom functions
 
 set.seed(1984)
 
+#plan("multisession", workers=20)
+options(future.globals.maxSize = 16000 * 1024^2)
 
-man_file <- "sample_manifest.csv"
+man_file <- "sample_manifest.csv" #--INPUT--
 manifest <- read_csv(here(man_file)) # Get run manifest
 
-outdir <- "output"
+outdir <- "output" #--INPUT--
 prepOutDir(outdir=outdir, manifest=manifest) # Prepare output dir structure. Custom func
 
 n_exprs <- length(unique(manifest$experiment)) #Checking for number of distinct experiments. Only support 1 per manifest as of now
@@ -80,10 +85,10 @@ for (i in 1:length(objs)){
 #################################################
 #Module 3 cell level QC
 
-min_nCount = 40
-min_nFeature = 15
-min_cellarea = 10
-max_cellarea = 200
+min_nCount = 40 #--PARAM--
+min_nFeature = 15 #--PARAM--
+min_cellarea = 10 #--PARAM--
+max_cellarea = 200 #--PARAM--
 
 ### QC plots for filters
 
@@ -94,7 +99,7 @@ for (i in 1:length(qc_plots)){
   imap(qc_plots[[i]], ~ ggsave(filename=here(outdir, "qc/plots", paste0(run_name, "_",.y, ".png")), plot=.x, height=6, width=6.5))
 }
 
-saveRDS(qc_plots, file=here(outdir, "qc/plots", paste0(experiment_name,"_","qc_plots.RDS")))
+#saveRDS(qc_plots, file=here(outdir, "qc/plots", paste0(experiment_name,"_","qc_plots.RDS"))) # This is causing issues for some reason
 
 ### Applying filters
 
@@ -112,21 +117,67 @@ for (i in 1:length(objs)){
   ggsave(here(outdir,"qc","images", paste(names(objs)[i], "filteredimg.png",sep=".")), dpi="retina", height=6, width=7)
 }
 
+imap(objs, ~saveRDS(object=.x,file=here(outdir,"pipeline/objs", paste0(experiment_name,"_", .y,"_", "filteredSeuratobj.rds")))) #Saving intermediate objects
 
 #################################################
 #Module 4 multi-sample integration
 
+#For quick restart of pipeline, testing only
+# XN006A_chol1 <- readRDS(here(outdir, "pipeline/objs", "Abbie_lung_XN006A_chol1_filteredSeuratobj.rds"))
+# XN006A_PBS <- readRDS(here(outdir, "pipeline/objs", "Abbie_lung_XN006A_PBS_filteredSeuratobj.rds"))
+# objs <- list(XN006A_chol1,XN006A_PBS)
+# names(objs) <- c("XN006A_chol1", "XN006A_PBS")
 
+integraton_method = "Seurat" #--PARAM-- Other future options: "Seurat", "Harmony", etc
 
+obj.full <- reduce(objs,merge)
+#obj.full <- merge(objs[1], y=objs[2:length(objs)])
+
+if (integraton_method=="None"){
+ obj.full<- JoinLayers(obj.full)
+}
 
 #################################################
 #Module 5 normalization
 
+obj.full <- SCTransform(obj.full, assay = "Xenium")
+
+if (integraton_method=="Seurat"){
+  obj.full[["SCT"]] <- split(obj.full[["SCT"]], f=obj.full$run_name) #For some reason SCTrans removes the layers
+}
 
 
+# I plan on expanding options here later...cell area based normalization?
 
 #################################################
-#Module 6 dimension Reduction
+#Module 6 dimension reduction
 
+obj.full <- RunPCA(obj.full, features=rownames(obj.full))
 
+if (integraton_method=="None"){
+  
+  PCA_outdir <- here(outdir, "pipeline/PCA", "joint_unintegrated")
+  dir.create.check(PCA_outdir)
+  dir.create.check(here(PCA_outdir, "dim_loadings"))
+  dir.create.check(here(PCA_outdir, "pca_plots"))
+  
+  elbow <- ElbowPlot(obj.full, ndims=50)
+  ggsave(here(PCA_outdir, paste0(experiment_name, "_","PCAelbow.png")), plot = elbow)
+  
+  AllVizDimLoadings(obj.full, outdir=PCA_outdir)
+  
+  PCAplots(obj.full, ndim=10, outdir=PCA_outdir)
+  
+}
+
+if (integration_method=="Seurat"){
+  obj.full <- IntegrateLayers(object = obj.full, method = RPCAIntegration, orig.reduction = "pca", new.reduction = "integrated.rpca", normalization.method="SCT",
+                  verbose = TRUE)
+  obj.full<- JoinLayers(obj.full)
+}
+
+#################################################
+#Save output
+
+saveRDS(obj.full, file=here(outdir, "pipeline/objs", paste0(experiment_name,"_","int-",integraton_method, "_", "scTrans_PCA.rds")))
 

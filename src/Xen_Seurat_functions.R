@@ -93,6 +93,7 @@ prepOutDir <- function(outdir="output", manifest){
   dir.create.check(here(base_dir))
   dir.create.check(here(base_dir, "pipeline"))
   dir.create.check(here(base_dir, "pipeline", "PCA"))
+  dir.create.check(here(base_dir, "pipeline", "objs"))
   dir.create.check(here(base_dir, "qc"))
   dir.create.check(here(base_dir, "qc", "images"))
   dir.create.check(here(base_dir, "qc", "plots"))
@@ -178,15 +179,15 @@ CellQCPlots <- function(obj, min_nCount, min_nFeature, min_cellarea, max_cellare
   plots[["count_feat_scatter"]] <- ggplot(meta, aes(x=nCount_Xenium, y=nFeature_Xenium)) + 
                                         geom_point() + 
                                         #geom_density_2d() + 
-                                        geom_hline(yintercept = min_nFeature, type="dashed",color="red") +
-                                        geom_vline(xintercept = min_nCount, type="dashed", color="red") +
+                                        geom_hline(yintercept = min_nFeature, linetype="dashed",color="red") +
+                                        geom_vline(xintercept = min_nCount, linetype="dashed", color="red") +
                                         labs(x="Counts per cell", y="Genes per cell") +
                                         theme_light()
   
   plots[["area_hist"]] <- ggplot(meta, aes(x=cell_area)) + 
                               geom_histogram(binwidth = 10) + 
-                              geom_vline(xintercept=min_cellarea,type="dashed",color="red") + 
-                              geom_vline(xintercept=max_cellarea,type="dashed",color="red") + 
+                              geom_vline(xintercept=min_cellarea,linetype="dashed",color="red") + 
+                              geom_vline(xintercept=max_cellarea,linetype="dashed",color="red") + 
                               theme_light()
   return(plots)
   # UNDER CONSTRUCTION
@@ -222,4 +223,37 @@ ThresholdBar <- function(obj, from=10, to=200, by=20, assay="nCount_Xenium"){
 }
 
 #################################################
-# 
+# AllVizDimLoadings
+# module 4 subfunction. Plot a series of dim loading plots for each PC of PCA
+# input: Seurat object, number of PCs (dim), output directory
+# output: Dim_loaing_n.png
+
+AllVizDimLoadings <- function(obj, dim=50, outdir,...) {
+  
+  dims <- 1:dim
+  num_chunks <- 5
+  dim_chunks <- split(dims, gl(num_chunks, ceiling(length(dims) / num_chunks), length(dims)))
+  
+  for (i in 1:length(dim_chunks)){
+    plot <- VizDimLoadings(obj, dims=dim_chunks[[i]], ncol=5)
+    ggsave(filename=here(outdir, "dim_loadings",paste0("Dim_loadings_", i, ".png")),plot=plot, height=15, width=15)
+  }
+    
+}
+
+#################################################
+# PCAplots
+# module 4 subfunction. Plot a series of PCA plots
+# input: Seurat object, number of PCs, output directory
+# output: 
+
+PCAplots <- function(obj, ndim=10, outdir) {
+  
+  pairs = combn(1:ndim, 2)
+  
+  for (i in 1:length(pairs)){
+    plot <- DimPlot(obj, reduction="pca", dims=pairs[,i]) + NoLegend()
+    ggsave(filename=here(outdir, "pca_plots",paste0("pca_plot_", pairs[1,i], ".v.",pairs[2,i], ".png")),plot=plot)
+  }
+  
+}
