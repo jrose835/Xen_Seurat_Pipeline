@@ -181,3 +181,7 @@ if (integration_method=="Seurat_RPCA"){
 
 saveRDS(obj.full, file=here(outdir, "pipeline/objs", paste0(experiment_name,"_","int-",integraton_method, "_", "scTrans_PCA.rds")))
 
+#################################################
+#Session Info
+
+capture.output(sessionInfo(), file=here(outdir, "pipeline",paste0("Rsession.info.LoadQCPCA.",gsub("\\D", "", Sys.time()), ".txt")))
