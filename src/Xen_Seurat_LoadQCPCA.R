@@ -29,7 +29,15 @@
 #           - harmony: https://github.com/immunogenomics/harmony
 
 # Outputs:
-#
+#     - output/pipeline/objs Integrated & processed Seurat object .rds file
+#     - output/qc/experiment_cellstats.csv
+#     - output/qc/experiment_filtered_cellstats.csv
+#     - output/qc/images/ full and filtered images .png
+#     - output/qc/plots {cell area hist, nCount threshold, nFeat threshold, count by feature scatter plot} .png
+#     - output/pipeline/objs Individual Seruat Objects, filtered for qc but no other processing
+#     - output/pipeline/pca experiment_PCAelbow.png
+#     - output/pipeline/pca/joint_unintegrated dim loading and pca plots for several PCs
+#     - Rsession info .txt file
 
 # Last updated: 10Oct2024
 # Author: jrose
@@ -139,7 +147,7 @@ imap(objs, ~saveRDS(object=.x,file=here(outdir,"pipeline/objs", paste0(experimen
 #################################################
 #Module 4.1 multi-sample integration (continued below)
 
-#For quick restart of pipeline, testing only
+#For quick restart of pipeline, used for testing only
 # XN006A_chol1 <- readRDS(here(outdir, "pipeline/objs", "Abbie_lung_XN006A_chol1_filteredSeuratobj.rds"))
 # XN006A_PBS <- readRDS(here(outdir, "pipeline/objs", "Abbie_lung_XN006A_PBS_filteredSeuratobj.rds"))
 # objs <- list(XN006A_chol1,XN006A_PBS)
@@ -163,7 +171,7 @@ obj.full <- SCTransform(obj.full, assay = "Xenium")
 
 obj.full <- RunPCA(obj.full)
 
-PCA_outdir <- here(outdir, "pipeline/PCA", "joint_unintegrated")
+PCA_outdir <- here(outdir, "pipeline/PCA", paste0("int-",integraton_method))
 dir.create.check(PCA_outdir)
 dir.create.check(here(PCA_outdir, "dim_loadings"))
 dir.create.check(here(PCA_outdir, "pca_plots"))
