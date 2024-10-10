@@ -13,14 +13,25 @@
 # Usage:
 
 # Inputs:
-#     - Manifest file (.csv) with 'run_name', 'experiment', 'condition', 'xen_dir', 'alt_input', and 'alt_input_dir' columns
+#     - man_file: Manifest file (.csv) with 'run_name', 'experiment', 'condition', 'xen_dir', 'alt_input', and 'alt_input_dir' columns
+#     - outdir: Main output directory path
 
 # Parameters:
-#
+#     - min_nCount: Minimum number of counts per cell
+#     - min_nFeature: Minimum number of unique genes per cell
+#     - min_cellarea: Minimum cell area
+#     - max_cellarea: Maximum cell area
+#     - integraton_method: Parameter for IntegrateLayers (Seurat v5) specifying what method to be used for integration. 
+#          Options include: 
+#           - None: No integration method is performed, just simple concatenation
+#           - Seuart_CCA: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6700744/
+#           - Seurat_RPCA: Better for large datasets, and those with unequal representation of cells. https://satijalab.org/seurat/articles/integration_rpca.html
+#           - harmony: https://github.com/immunogenomics/harmony
 
 # Outputs:
+#
 
-# Last updated: 08Oct2024
+# Last updated: 10Oct2024
 # Author: jrose
 #################################################
 #Set up
@@ -40,12 +51,23 @@ set.seed(1984)
 #plan("multisession", workers=20)
 options(future.globals.maxSize = 16000 * 1024^2)
 
+#################################################
+# Inputs, Parameters, and Setup
+
 man_file <- "sample_manifest.csv" #--INPUT--
-manifest <- read_csv(here(man_file)) # Get run manifest
-
 outdir <- "output" #--INPUT--
-prepOutDir(outdir=outdir, manifest=manifest) # Prepare output dir structure. Custom func
 
+min_nCount = 40 #--PARAM--
+min_nFeature = 15 #--PARAM--
+min_cellarea = 10 #--PARAM--
+max_cellarea = 200 #--PARAM--
+
+integraton_method = "Seurat_RPCA" #--PARAM-- Other options: "Seura_CCA", "harmony"
+
+### Set up
+
+manifest <- read_csv(here(man_file)) # Get run manifest
+prepOutDir(outdir=outdir, manifest=manifest) # Prepare output dir structure. Custom func
 n_exprs <- length(unique(manifest$experiment)) #Checking for number of distinct experiments. Only support 1 per manifest as of now
 
 if (n_exprs==1){
@@ -85,11 +107,6 @@ for (i in 1:length(objs)){
 #################################################
 #Module 3 cell level QC
 
-min_nCount = 40 #--PARAM--
-min_nFeature = 15 #--PARAM--
-min_cellarea = 10 #--PARAM--
-max_cellarea = 200 #--PARAM--
-
 ### QC plots for filters
 
 qc_plots <- map(objs, CellQCPlots, min_nCount = min_nCount, min_nFeature = min_nFeature, min_cellarea = min_cellarea, max_cellarea = max_cellarea)
@@ -127,8 +144,6 @@ imap(objs, ~saveRDS(object=.x,file=here(outdir,"pipeline/objs", paste0(experimen
 # XN006A_PBS <- readRDS(here(outdir, "pipeline/objs", "Abbie_lung_XN006A_PBS_filteredSeuratobj.rds"))
 # objs <- list(XN006A_chol1,XN006A_PBS)
 # names(objs) <- c("XN006A_chol1", "XN006A_PBS")
-
-integraton_method = "Seurat_RPCA" #--PARAM-- Other options: "Seura_CCA", "harmony"
 
 obj.full <- reduce(objs,merge)
 
