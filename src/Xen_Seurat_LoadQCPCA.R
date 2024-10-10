@@ -21,7 +21,7 @@
 #     - min_nFeature: Minimum number of unique genes per cell
 #     - min_cellarea: Minimum cell area
 #     - max_cellarea: Maximum cell area
-#     - integraton_method: Parameter for IntegrateLayers (Seurat v5) specifying what method to be used for integration. 
+#     - integration_method: Parameter for IntegrateLayers (Seurat v5) specifying what method to be used for integration. 
 #          Options include: 
 #           - None: No integration method is performed, just simple concatenation
 #           - Seuart_CCA: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6700744/
@@ -70,8 +70,8 @@ min_nFeature = 15 #--PARAM--
 min_cellarea = 10 #--PARAM--
 max_cellarea = 200 #--PARAM--
 
-integraton_method = "Seurat_RPCA" #--PARAM-- Other options: "None", "Seurat_CCA", "harmony"
-if (!integraton_method %in% c("None", "Seurat_RPCA", "Seurat_CCA", "harmony")){
+integration_method = "Seurat_RPCA" #--PARAM-- Other options: "None", "Seurat_CCA", "harmony"
+if (!integration_method %in% c("None", "Seurat_RPCA", "Seurat_CCA", "harmony")){
   stop("Integration method unknown. Please select from: None, Seurat_RPCA, Seurat_CCA, or harmony")
 }
 
@@ -158,7 +158,7 @@ imap(objs, ~saveRDS(object=.x,file=here(outdir,"pipeline/objs", paste0(experimen
 
 obj.full <- reduce(objs,merge)
 
-if (integraton_method=="None"){
+if (integration_method=="None"){
  obj.full<- JoinLayers(obj.full)
 }
 
@@ -174,7 +174,7 @@ obj.full <- SCTransform(obj.full, assay = "Xenium")
 
 obj.full <- RunPCA(obj.full)
 
-PCA_outdir <- here(outdir, "pipeline/PCA", paste0("int-",integraton_method))
+PCA_outdir <- here(outdir, "pipeline/PCA", paste0("int-",integration_method))
 dir.create.check(PCA_outdir)
 dir.create.check(here(PCA_outdir, "dim_loadings"))
 dir.create.check(here(PCA_outdir, "pca_plots"))
@@ -194,10 +194,10 @@ PCAplots(obj.full, ndim=10, outdir=PCA_outdir)
 if (integration_method=="Seurat_RPCA"){
   obj.full <- IntegrateLayers(object = obj.full, method = RPCAIntegration, orig.reduction = "pca", new.reduction = "integrated.rpca", normalization.method="SCT",
                   verbose = TRUE)
-} else if (integraton_method=="harmony"){
+} else if (integration_method=="harmony"){
   obj.full <- IntegrateLayers(object = obj.full, method = HarmonyIntegration, orig.reduction = "pca", new.reduction = "integrated.harm", normalization.method="SCT",
                               verbose = TRUE)
-} else if (integraton_method=="Seurat_CCA"){
+} else if (integration_method=="Seurat_CCA"){
   obj.full <- IntegrateLayers(object = obj.full, method = CCAIntegration, orig.reduction = "pca", new.reduction = "integrated.CCA", normalization.method="SCT",
                               verbose = TRUE)
 }
@@ -205,7 +205,7 @@ if (integration_method=="Seurat_RPCA"){
 #################################################
 #Save output
 
-saveRDS(obj.full, file=here(outdir, "pipeline/objs", paste0(experiment_name,"_","int-",integraton_method, "_", "scTrans_PCA.rds")))
+saveRDS(obj.full, file=here(outdir, "pipeline/objs", paste0(experiment_name,"_","int-",integration_method, "_", "scTrans_PCA.rds")))
 
 #################################################
 #Session Info
