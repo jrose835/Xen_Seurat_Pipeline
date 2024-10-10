@@ -194,10 +194,10 @@ PCAplots(obj.full, ndim=10, outdir=PCA_outdir)
 if (integration_method=="Seurat_RPCA"){
   obj.full <- IntegrateLayers(object = obj.full, method = RPCAIntegration, orig.reduction = "pca", new.reduction = "integrated.rpca", normalization.method="SCT",
                   verbose = TRUE)
-} elseif (integraton_method=="harmony"){
+} else if (integraton_method=="harmony"){
   obj.full <- IntegrateLayers(object = obj.full, method = HarmonyIntegration, orig.reduction = "pca", new.reduction = "integrated.harm", normalization.method="SCT",
                               verbose = TRUE)
-} elseif (integraton_method=="Seurat_CCA"){
+} else if (integraton_method=="Seurat_CCA"){
   obj.full <- IntegrateLayers(object = obj.full, method = CCAIntegration, orig.reduction = "pca", new.reduction = "integrated.CCA", normalization.method="SCT",
                               verbose = TRUE)
 }
