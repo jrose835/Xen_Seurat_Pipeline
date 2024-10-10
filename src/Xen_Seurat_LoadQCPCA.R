@@ -70,7 +70,10 @@ min_nFeature = 15 #--PARAM--
 min_cellarea = 10 #--PARAM--
 max_cellarea = 200 #--PARAM--
 
-integraton_method = "Seurat_RPCA" #--PARAM-- Other options: "Seura_CCA", "harmony"
+integraton_method = "Seurat_RPCA" #--PARAM-- Other options: "None", "Seurat_CCA", "harmony"
+if (!integraton_method %in% c("None", "Seurat_RPCA", "Seurat_CCA", "harmony")){
+  stop("Integration method unknown. Please select from: None, Seurat_RPCA, Seurat_CCA, or harmony")
+}
 
 ### Set up
 
@@ -194,7 +197,7 @@ if (integration_method=="Seurat_RPCA"){
 } elseif (integraton_method=="harmony"){
   obj.full <- IntegrateLayers(object = obj.full, method = HarmonyIntegration, orig.reduction = "pca", new.reduction = "integrated.harm", normalization.method="SCT",
                               verbose = TRUE)
-} elseif (integraton_method=="Seuart_CCA"){
+} elseif (integraton_method=="Seurat_CCA"){
   obj.full <- IntegrateLayers(object = obj.full, method = CCAIntegration, orig.reduction = "pca", new.reduction = "integrated.CCA", normalization.method="SCT",
                               verbose = TRUE)
 }
