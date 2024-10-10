@@ -120,7 +120,7 @@ for (i in 1:length(objs)){
 imap(objs, ~saveRDS(object=.x,file=here(outdir,"pipeline/objs", paste0(experiment_name,"_", .y,"_", "filteredSeuratobj.rds")))) #Saving intermediate objects
 
 #################################################
-#Module 4 multi-sample integration
+#Module 4.1 multi-sample integration (continued below)
 
 #For quick restart of pipeline, testing only
 # XN006A_chol1 <- readRDS(here(outdir, "pipeline/objs", "Abbie_lung_XN006A_chol1_filteredSeuratobj.rds"))
@@ -128,10 +128,9 @@ imap(objs, ~saveRDS(object=.x,file=here(outdir,"pipeline/objs", paste0(experimen
 # objs <- list(XN006A_chol1,XN006A_PBS)
 # names(objs) <- c("XN006A_chol1", "XN006A_PBS")
 
-integraton_method = "Seurat" #--PARAM-- Other future options: "Seurat", "Harmony", etc
+integraton_method = "Seurat_RPCA" #--PARAM-- Other options: "Seura_CCA", "harmony"
 
 obj.full <- reduce(objs,merge)
-#obj.full <- merge(objs[1], y=objs[2:length(objs)])
 
 if (integraton_method=="None"){
  obj.full<- JoinLayers(obj.full)
@@ -142,38 +141,39 @@ if (integraton_method=="None"){
 
 obj.full <- SCTransform(obj.full, assay = "Xenium")
 
-if (integraton_method=="Seurat"){
-  obj.full[["SCT"]] <- split(obj.full[["SCT"]], f=obj.full$run_name) #For some reason SCTrans removes the layers
-}
-
-
 # I plan on expanding options here later...cell area based normalization?
 
 #################################################
 #Module 6 dimension reduction
 
-obj.full <- RunPCA(obj.full, features=rownames(obj.full))
+obj.full <- RunPCA(obj.full)
 
-if (integraton_method=="None"){
-  
-  PCA_outdir <- here(outdir, "pipeline/PCA", "joint_unintegrated")
-  dir.create.check(PCA_outdir)
-  dir.create.check(here(PCA_outdir, "dim_loadings"))
-  dir.create.check(here(PCA_outdir, "pca_plots"))
-  
-  elbow <- ElbowPlot(obj.full, ndims=50)
-  ggsave(here(PCA_outdir, paste0(experiment_name, "_","PCAelbow.png")), plot = elbow)
-  
-  AllVizDimLoadings(obj.full, outdir=PCA_outdir)
-  
-  PCAplots(obj.full, ndim=10, outdir=PCA_outdir)
-  
-}
+PCA_outdir <- here(outdir, "pipeline/PCA", "joint_unintegrated")
+dir.create.check(PCA_outdir)
+dir.create.check(here(PCA_outdir, "dim_loadings"))
+dir.create.check(here(PCA_outdir, "pca_plots"))
 
-if (integration_method=="Seurat"){
+elbow <- ElbowPlot(obj.full, ndims=50)
+ggsave(here(PCA_outdir, paste0(experiment_name, "_","PCAelbow.png")), plot = elbow)
+
+AllVizDimLoadings(obj.full, outdir=PCA_outdir)
+
+PCAplots(obj.full, ndim=10, outdir=PCA_outdir)
+
+#################################################
+#Module 4.2 multi-sample integration
+
+# Note: Will need to change if normalization method changes
+
+if (integration_method=="Seurat_RPCA"){
   obj.full <- IntegrateLayers(object = obj.full, method = RPCAIntegration, orig.reduction = "pca", new.reduction = "integrated.rpca", normalization.method="SCT",
                   verbose = TRUE)
-  obj.full<- JoinLayers(obj.full)
+} elseif (integraton_method=="harmony"){
+  obj.full <- IntegrateLayers(object = obj.full, method = HarmonyIntegration, orig.reduction = "pca", new.reduction = "integrated.harm", normalization.method="SCT",
+                              verbose = TRUE)
+} elseif (integraton_method=="Seuart_CCA"){
+  obj.full <- IntegrateLayers(object = obj.full, method = CCAIntegration, orig.reduction = "pca", new.reduction = "integrated.CCA", normalization.method="SCT",
+                              verbose = TRUE)
 }
 
 #################################################
