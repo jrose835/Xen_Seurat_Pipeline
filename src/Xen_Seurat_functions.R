@@ -100,17 +100,17 @@ prepOutDir <- function(outdir="output", manifest){
   
   
   # Create PCA directories for each run
-  runs <- manifest$run_name
-  
-  for (run in runs) {
-    run_dir <- here(base_dir, "pipeline", "PCA", run)
-    dim_loadings_dir <- here(run_dir, "dim_loadings")
-    pca_plots_dir <- here(run_dir, "pca_plots")
-    
-    # Create the directories for the current run
-    dir.create.check(dim_loadings_dir, recursive=TRUE)
-    dir.create.check(pca_plots_dir, recursive=TRUE)
-  }
+  # runs <- manifest$run_name
+  # 
+  # for (run in runs) {
+  #   run_dir <- here(base_dir, "pipeline", "PCA", run)
+  #   dim_loadings_dir <- here(run_dir, "dim_loadings")
+  #   pca_plots_dir <- here(run_dir, "pca_plots")
+  #   
+  #   # Create the directories for the current run
+  #   dir.create.check(dim_loadings_dir, recursive=TRUE)
+  #   dir.create.check(pca_plots_dir, recursive=TRUE)
+  # }
   
 }
 
@@ -251,9 +251,35 @@ PCAplots <- function(obj, ndim=10, outdir) {
   
   pairs = combn(1:ndim, 2)
   
-  for (i in 1:length(pairs)){
+  for (i in 1:ncol(pairs)){
     plot <- DimPlot(obj, reduction="pca", dims=pairs[,i]) + NoLegend()
     ggsave(filename=here(outdir, "pca_plots",paste0("pca_plot_", pairs[1,i], ".v.",pairs[2,i], ".png")),plot=plot)
   }
   
+}
+
+
+#################################################
+# MultiResCluster
+# Script 2 module 1 subfunction. Performs clustering 
+# input: Seurat object, resolution range, output directory
+# output: Seurat object with cluster ids for a range of resolutions, clustree graph
+
+MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TRUE, clustree=TRUE) {
+  
+  res <- seq(from=res_range[1], to=res_range[2], by=0.1)
+  
+  if (perform_clustering==TRUE){
+    for (i in 1:length(res)){
+      obj <- FindClusters(obj, resolution=res[i], verbose=FALSE)
+      obj[[paste0("res.",res[i])]] <- Idents(obj)
+    }
+  }
+  
+  if (clustree==TRUE){
+    clustree_plot <- clustree(obj, prefix = "res.", node_colour = "sc3_stability", node_label="res.")
+    ggsave(filename=here(outdir, "clustree.png"), plot=clustree_plot, width=14, height=12)
+  }
+  
+  return(obj)
 }
