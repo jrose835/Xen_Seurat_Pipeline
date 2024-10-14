@@ -20,7 +20,7 @@ library(here)
 # input: manifest dataframe
 # output: list of SeuratObjects
 
-LoadMultiXenium <- function(manifest, fov="fov", assay="Xenium"){
+LoadMultiXenium <- function(manifest, assay="Xenium"){
   
   outs <- list()
   
@@ -32,7 +32,7 @@ LoadMultiXenium <- function(manifest, fov="fov", assay="Xenium"){
     
     print(paste0("Loading", " ", run, "--", Sys.time()))
     
-    obj <- LoadXenium(dirs[i], fov=fov, assay=assay)
+    obj <- LoadXenium(dirs[i], fov=run, assay=assay)
     
     obj$run_name <- run
     obj$experiment <- manifest$experiment[i]
