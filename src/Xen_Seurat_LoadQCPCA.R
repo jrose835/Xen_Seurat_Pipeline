@@ -70,7 +70,7 @@ min_nFeature = 15 #--PARAM--
 min_cellarea = 10 #--PARAM--
 max_cellarea = 200 #--PARAM--
 
-integration_method = "Seurat_RPCA" #--PARAM-- Other options: "None", "Seurat_CCA", "harmony"
+integration_method = "None" #--PARAM-- Other options: "None", "Seurat_CCA", "harmony"
 if (!integration_method %in% c("None", "Seurat_RPCA", "Seurat_CCA", "harmony")){
   stop("Integration method unknown. Please select from: None, Seurat_RPCA, Seurat_CCA, or harmony")
 }
