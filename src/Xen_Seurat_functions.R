@@ -263,9 +263,9 @@ PCAplots <- function(obj, ndim=10, outdir) {
 # MultiResCluster
 # Script 2 module 1 subfunction. Performs clustering 
 # input: Seurat object, resolution range, output directory
-# output: Seurat object with cluster ids for a range of resolutions, clustree graph
+# output: Seurat object with cluster ids for a range of resolutions, clustree graph, umaps showing clusters at each resolution
 
-MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TRUE, clustree=TRUE) {
+MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TRUE, clustree=TRUE, plot_UMAP=TRUE) {
   
   res <- seq(from=res_range[1], to=res_range[2], by=0.1)
   
@@ -273,6 +273,12 @@ MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TR
     for (i in 1:length(res)){
       obj <- FindClusters(obj, resolution=res[i], verbose=FALSE)
       obj[[paste0("res.",res[i])]] <- Idents(obj)
+      
+      if (plot_UMAP==TRUE){
+        outdir_umap <- dir.create.check(here(outdir, "umap"))
+        umap <- DimPlot(obj)
+        ggsave(filename=here(outdir_umap, paste0("umap.res.",res[i],".png")), height=7, width=8.5)
+      }
     }
   }
   
