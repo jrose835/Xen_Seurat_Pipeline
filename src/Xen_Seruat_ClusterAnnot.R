@@ -101,6 +101,11 @@ ggsave(filename=here(vis_out, paste0(experiment_name, "_", "imgclusters.pdf")), 
 
 
 #################################################
+#Automated annotation
+
+## UNDER CONSTRUCTION ##
+
+#################################################
 #Save output
 
 outfile <- gsub("PCA", paste0("clusRes.", clus_res), infile)
