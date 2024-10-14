@@ -328,9 +328,14 @@
     },
     "Seurat": {
       "Package": "Seurat",
-      "Version": "5.1.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
+      "Version": "5.1.0.9006",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "seurat",
+      "RemoteUsername": "10XGenomics",
+      "RemoteRef": "develop",
+      "RemoteSha": "db8bd41ea83f53c155a8376a098cdac94d94b5e5",
       "Requirements": [
         "KernSmooth",
         "MASS",
@@ -391,7 +396,7 @@
         "utils",
         "uwot"
       ],
-      "Hash": "aa2040fec3d03e3e598e0b406a84a104"
+      "Hash": "6451c047e1732dd897ef8522f10711f9"
     },
     "SeuratObject": {
       "Package": "SeuratObject",
@@ -806,14 +811,14 @@
     },
     "data.table": {
       "Package": "data.table",
-      "Version": "1.16.0",
+      "Version": "1.16.2",
       "Source": "Repository",
-      "Repository": "CRAN",
+      "Repository": "RSPM",
       "Requirements": [
         "R",
         "methods"
       ],
-      "Hash": "fb24e05d4a91d8b1c7ff8e284bde834a"
+      "Hash": "2e00b378fc3be69c865120d9f313039a"
     },
     "dbplyr": {
       "Package": "dbplyr",
@@ -958,13 +963,13 @@
     },
     "evaluate": {
       "Package": "evaluate",
-      "Version": "1.0.0",
+      "Version": "1.0.1",
       "Source": "Repository",
-      "Repository": "CRAN",
+      "Repository": "RSPM",
       "Requirements": [
         "R"
       ],
-      "Hash": "6b567375113ceb7d9f800de4dd42218e"
+      "Hash": "3fd29944b231036ad67c3edb32e02201"
     },
     "fansi": {
       "Package": "fansi",
