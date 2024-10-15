@@ -96,7 +96,7 @@ cellstats <- do.call(rbind, lapply(objs, XenSeuratStats)) #Summary statistics fo
 write.csv(cellstats, file=here(outdir, "qc", paste0(experiment_name,"_","cellstats.csv")))
 
 for (i in 1:length(objs)){
-  ImageDimPlot(objs[[i]], fov="fov", border.size=NA)
+  ImageDimPlot(objs[[i]], border.size=NA)
   ggsave(here(outdir,"qc","images", paste(names(objs)[i], "fullimg.png",sep=".")), dpi="retina", height=6, width=7)
 }
 #^Generate full image plots for each run
@@ -141,7 +141,7 @@ filtered_cellstats <- do.call(rbind, lapply(objs, XenSeuratStats)) #Summary stat
 write.csv(filtered_cellstats, file=here(outdir, "qc", paste0(experiment_name,"_","filtered_cellstats.csv")))
 
 for (i in 1:length(objs)){
-  ImageDimPlot(objs[[i]], fov="fov", border.size=NA)
+  ImageDimPlot(objs[[i]], border.size=NA)
   ggsave(here(outdir,"qc","images", paste(names(objs)[i], "filteredimg.png",sep=".")), dpi="retina", height=6, width=7)
 }
 
