@@ -275,9 +275,10 @@ MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TR
       obj[[paste0("res.",res[i])]] <- Idents(obj)
       
       if (plot_UMAP==TRUE){
-        outdir_umap <- dir.create.check(here(outdir, "umap"))
+        outdir_umap <- here(outdir, "umap")
+        dir.create.check(here(outdir, "umap"))
         umap <- DimPlot(obj)
-        ggsave(filename=here(outdir_umap, paste0("umap.res.",res[i],".png")), height=7, width=8.5)
+        ggsave(filename=here(outdir_umap, paste0("umap.res.",res[i],".png")), plot=umap,height=7, width=8.5)
       }
     }
   }
