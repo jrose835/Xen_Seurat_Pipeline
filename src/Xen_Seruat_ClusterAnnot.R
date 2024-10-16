@@ -46,8 +46,8 @@ source(here("src", "Xen_Seurat_functions.R"))
 
 set.seed(1984)
 
-#plan("multisession", workers=20)
 options(future.globals.maxSize = 16000 * 1024^2)
+plan("multisession", workers=10)
 
 #################################################
 #Inputs & Parameters

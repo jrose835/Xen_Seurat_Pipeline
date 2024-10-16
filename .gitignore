@@ -8,3 +8,4 @@ sample_manifest.csv
 *.pdf
 *.csv
 .~lock.*
+tests

@@ -266,25 +266,30 @@ PCAplots <- function(obj, ndim=10, outdir) {
 # output: Seurat object with cluster ids for a range of resolutions, clustree graph, umaps showing clusters at each resolution
 
 MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TRUE, clustree=TRUE, plot_UMAP=TRUE) {
-  
   res <- seq(from=res_range[1], to=res_range[2], by=0.1)
   
   if (perform_clustering==TRUE){
-    for (i in 1:length(res)){
-      obj <- FindClusters(obj, resolution=res[i], verbose=FALSE)
-      obj[[paste0("res.",res[i])]] <- Idents(obj)
-      
-      if (plot_UMAP==TRUE){
+    
+    obj <- FindClusters(obj, resolution=res, verbose=TRUE)
+    
+    res_names <- names(obj@meta.data)[grep("res.", names(obj@meta.data))]
+    prefix <- sub("(.*_res\\.).*", "\\1", res_names) %>% unique()
+    
+    if (plot_UMAP==TRUE){
+      for (i in 1:length(res)){
         outdir_umap <- here(outdir, "umap")
         dir.create.check(here(outdir, "umap"))
-        umap <- DimPlot(obj)
-        ggsave(filename=here(outdir_umap, paste0("umap.res.",res[i],".png")), plot=umap,height=7, width=8.5)
+        umap <- DimPlot(obj, group.by=paste0(prefix,res[i]))
+        ggsave(filename=here(outdir_umap, paste0("umap.res.",res[i],".png")), plot=umap,height=5, width=6.5)
       }
     }
   }
   
+  res_names <- names(obj@meta.data)[grep("res.", names(obj@meta.data))]
+  prefix <- sub("(.*_res\\.).*", "\\1", res_names) %>% unique()
+  
   if (clustree==TRUE){
-    clustree_plot <- clustree(obj, prefix = "res.", node_colour = "sc3_stability", node_label="res.")
+    clustree_plot <- clustree(obj, prefix = prefix, node_colour = "sc3_stability", node_label=prefix, node_text_colour="grey90")
     ggsave(filename=here(outdir, "clustree.png"), plot=clustree_plot, width=14, height=12)
   }
   
