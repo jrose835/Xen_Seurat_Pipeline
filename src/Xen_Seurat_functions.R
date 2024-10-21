@@ -11,7 +11,7 @@ library(future)
 library(clustree)
 library(spacexr)
 library(nanoparquet)
-library(scBubbletree)
+#library(scBubbletree)
 library(here)
 
 #################################################
