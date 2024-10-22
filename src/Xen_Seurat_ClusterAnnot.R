@@ -82,7 +82,8 @@ obj <- MultiResCluster(obj, res_range = c(0,1),
                        clustree=TRUE,
                        plot_UMAP=TRUE
                        )
-Idents(obj) <- obj@meta.data[[paste0("res.",clus_res)]]
+clust_prefix <- GetClusterPrefix(obj)
+Idents(obj) <- obj@meta.data[[paste0(clust_prefix,clus_res)]]
 
 #################################################
 #General Visualization

@@ -272,8 +272,7 @@ MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TR
     
     obj <- FindClusters(obj, resolution=res, verbose=TRUE)
     
-    res_names <- names(obj@meta.data)[grep("res.", names(obj@meta.data))]
-    prefix <- sub("(.*_res\\.).*", "\\1", res_names) %>% unique()
+    prefix <- GetCLusterPrefix(obj) #See helper function below
     
     if (plot_UMAP==TRUE){
       for (i in 1:length(res)){
@@ -285,8 +284,7 @@ MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TR
     }
   }
   
-  res_names <- names(obj@meta.data)[grep("res.", names(obj@meta.data))]
-  prefix <- sub("(.*_res\\.).*", "\\1", res_names) %>% unique()
+  prefix <- GetCLusterPrefix(obj)
   
   if (clustree==TRUE){
     clustree_plot <- clustree(obj, prefix = prefix, node_colour = "sc3_stability", node_label=prefix, node_text_colour="grey90")
@@ -294,4 +292,21 @@ MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TR
   }
   
   return(obj)
+}
+#################################################
+# GetClusterPrefix
+# Script 2 helper function for getting/setting clustering metadata variable name
+# input: Seurat object
+# output: prefix string for clustering variables
+
+GetClusterPrefix <- function(obj){
+  
+  res_names <- names(obj@meta.data)[grep("res.", names(obj@meta.data))]
+  prefix <- sub("(.*_res\\.).*", "\\1", res_names) %>% unique()
+  
+  if (length(prefix)>1){
+    warning("Multiple clustering prefixes detected")
+  }
+  
+  return(prefix)
 }
