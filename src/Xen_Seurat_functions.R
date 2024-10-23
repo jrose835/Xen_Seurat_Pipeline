@@ -272,7 +272,7 @@ MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TR
     
     obj <- FindClusters(obj, resolution=res, verbose=TRUE)
     
-    prefix <- GetCLusterPrefix(obj) #See helper function below
+    prefix <- GetClusterPrefix(obj) #See helper function below
     
     if (plot_UMAP==TRUE){
       for (i in 1:length(res)){
@@ -284,7 +284,7 @@ MultiResCluster <- function(obj, res_range=c(0,1), outdir, perform_clustering=TR
     }
   }
   
-  prefix <- GetCLusterPrefix(obj)
+  prefix <- GetClusterPrefix(obj)
   
   if (clustree==TRUE){
     clustree_plot <- clustree(obj, prefix = prefix, node_colour = "sc3_stability", node_label=prefix, node_text_colour="grey90")
