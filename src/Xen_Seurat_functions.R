@@ -1,6 +1,6 @@
 # Functions for Xenium Seurat Pipleine
 
-# Last updated: 07Oct2024
+# Last updated: 13Dec2024
 # Author: jrose
 
 #################################################
@@ -12,6 +12,8 @@ library(clustree)
 #library(spacexr)
 library(nanoparquet)
 #library(scBubbletree)
+library(uwot)
+library(Matrix)
 library(here)
 
 #################################################
@@ -310,3 +312,361 @@ GetClusterPrefix <- function(obj){
   
   return(prefix)
 }
+
+#################################################
+#LogAreaNormalize
+#Module 5. Very much inspired by Seurat v5 LogNormalize.deafult
+# input: sparse matrix of counts data, meta data data frame containing "cell_area" values
+# output: prefix string for clustering variables
+#@PARAM: scale.factor : transcripts per X um
+#@PARAM: margin : 2 for column, 1 for row
+
+#Expression data operator
+LogAreaNormalize.default <- function(
+    data,
+    metadata,
+    scale.factor=100,
+    margin=2L,
+    ...
+){
+  # Check margin validity
+  margin <- .CheckFmargin(fmargin = margin)
+  
+  # Save original row/column names
+  rownames_original <- rownames(data)
+  colnames_original <- colnames(data)
+  
+  # Ensure 'cell_area' exists in metadata
+  if (!"cell_area" %in% colnames(metadata)) {
+    stop("Metadata must contain a 'cell_area' column for normalization.")
+  }
+  
+  # Retrieve and validate cell_area
+  cell_area <- metadata$cell_area
+  if (any(is.na(cell_area) | cell_area <= 0)) {
+    stop("All 'cell_area' values must be positive numbers.")
+  }
+  
+  # Normalize the data matrix
+  if (margin == 2L) {
+    # Normalize over columns
+    cell_area_matrix <- Matrix::Diagonal(x = 1 / cell_area) # Efficient scaling
+    data <- data %*% cell_area_matrix
+  } else {
+    # Normalize over rows
+    cell_area_matrix <- Matrix::Diagonal(x = 1 / cell_area)
+    data <- cell_area_matrix %*% data
+  }
+  
+  # Apply scaling factor and log1p in bulk
+  data <- log1p(data * scale.factor)
+  
+  # Restore original row/column names
+  rownames(data) <- rownames_original
+  colnames(data) <- colnames_original
+  
+  return(data)
+}  
+
+#################################################
+#LogAreaNormalize
+#A Seruat Object "Method" level function calling LogAreaNormalize.default on Seurat objects
+#input: Seurat object with counts data in assay counts slot selected
+#output: Seurat object with area normalized counts in data slot
+
+LogAreaNormalize <- function(object, 
+                             assay="Xenium",
+                             scale.factor=100,
+                             margin=2L,
+                             ...
+) {
+  print(paste0("Area Normalizing Data", "--", Sys.time()))
+  object[[assay]]$data <- LogAreaNormalize.default(data=object[[assay]]$counts,
+                                                   metadata = object@meta.data,
+  )
+  object <- LogSeuratCommand(object=object)
+  return(object)
+}
+
+
+#################################################
+#UMAP functions
+#input: Matrix of embedings (use Seurat::Embeddings())
+#output: Umap embedding
+
+# For calculating UMAP off of area-normalized counts
+# This is literally just the function copied from Seurat v5 github
+# I've run into a bug when trying to apply RunUMAP() on objects with custom normalization. So here I am avoiding it by running it myself
+# I've diagnosed the problem has having somethign to do with RunUMAP.Seurat method from Seruat v5 / SeruatObjects but can't say for sure what's causing it.
+
+RunUMAP.default <- function(
+    object,
+    reduction.key = 'UMAP_',
+    assay = NULL,
+    reduction.model = NULL,
+    return.model = FALSE,
+    umap.method = 'uwot',
+    n.neighbors = 30L,
+    n.components = 2L,
+    metric = 'cosine',
+    n.epochs = NULL,
+    learning.rate = 1.0,
+    min.dist = 0.3,
+    spread = 1.0,
+    set.op.mix.ratio = 1.0,
+    local.connectivity = 1L,
+    repulsion.strength = 1,
+    negative.sample.rate = 5,
+    a = NULL,
+    b = NULL,
+    uwot.sgd = FALSE,
+    seed.use = 42,
+    metric.kwds = NULL,
+    angular.rp.forest = FALSE,
+    densmap = FALSE,
+    dens.lambda = 2,
+    dens.frac = 0.3,
+    dens.var.shift = 0.1,
+    verbose = TRUE,
+    ...
+) {
+  CheckDots(...)
+  if (!is.null(x = seed.use)) {
+    set.seed(seed = seed.use)
+  }
+  if (umap.method != 'umap-learn' && getOption('Seurat.warn.umap.uwot', TRUE)) {
+    warning(
+      "The default method for RunUMAP has changed from calling Python UMAP via reticulate to the R-native UWOT using the cosine metric",
+      "\nTo use Python UMAP via reticulate, set umap.method to 'umap-learn' and metric to 'correlation'",
+      "\nThis message will be shown once per session",
+      call. = FALSE,
+      immediate. = TRUE
+    )
+    options(Seurat.warn.umap.uwot = FALSE)
+  }
+  if (umap.method == 'uwot-learn') {
+    warning("'uwot-learn' is deprecated. Set umap.method = 'uwot' and return.model = TRUE")
+    umap.method <- "uwot"
+    return.model <- TRUE
+  }
+  if (densmap && umap.method != 'umap-learn'){
+    warning("densmap is only supported by umap-learn method. Method is changed to 'umap-learn'")
+    umap.method <- 'umap-learn'
+  }
+  if (return.model) {
+    if (verbose) {
+      message("UMAP will return its model")
+    }
+    umap.method = "uwot"
+  }
+  if (inherits(x = object, what = "Neighbor")) {
+    object <- list( idx = Indices(object),
+                    dist = Distances(object) )
+  }
+  if (!is.null(x = reduction.model)) {
+    if (verbose) {
+      message("Running UMAP projection")
+    }
+    umap.method <- "uwot-predict"
+  }
+  umap.output <- switch(
+    EXPR = umap.method,
+    'umap-learn' = {
+      if (!py_module_available(module = 'umap')) {
+        stop("Cannot find UMAP, please install through pip (e.g. pip install umap-learn).")
+      }
+      if (!py_module_available(module = 'sklearn')) {
+        stop("Cannot find sklearn, please install through pip (e.g. pip install scikit-learn).")
+      }
+      if (!is.null(x = seed.use)) {
+        py_set_seed(seed = seed.use)
+      }
+      if (typeof(x = n.epochs) == "double") {
+        n.epochs <- as.integer(x = n.epochs)
+      }
+      umap_import <- import(module = "umap", delay_load = TRUE)
+      sklearn <- import("sklearn", delay_load = TRUE)
+      if (densmap &&
+          numeric_version(x = umap_import$pkg_resources$get_distribution("umap-learn")$version) <
+          numeric_version(x = "0.5.0")) {
+        stop("densmap is only supported by versions >= 0.5.0 of umap-learn. Upgrade umap-learn (e.g. pip install --upgrade umap-learn).")
+      }
+      random.state <- sklearn$utils$check_random_state(seed = as.integer(x = seed.use))
+      umap.args <- list(
+        n_neighbors = as.integer(x = n.neighbors),
+        n_components = as.integer(x = n.components),
+        metric = metric,
+        n_epochs = n.epochs,
+        learning_rate = learning.rate,
+        min_dist = min.dist,
+        spread = spread,
+        set_op_mix_ratio = set.op.mix.ratio,
+        local_connectivity = local.connectivity,
+        repulsion_strength = repulsion.strength,
+        negative_sample_rate = negative.sample.rate,
+        random_state = random.state,
+        a = a,
+        b = b,
+        metric_kwds = metric.kwds,
+        angular_rp_forest = angular.rp.forest,
+        verbose = verbose
+      )
+      if (numeric_version(x = umap_import$pkg_resources$get_distribution("umap-learn")$version) >=
+          numeric_version(x = "0.5.0")) {
+        umap.args <- c(umap.args, list(
+          densmap = densmap,
+          dens_lambda = dens.lambda,
+          dens_frac = dens.frac,
+          dens_var_shift = dens.var.shift,
+          output_dens = FALSE
+        ))
+      }
+      umap <- do.call(what = umap_import$UMAP, args = umap.args)
+      umap$fit_transform(as.matrix(x = object))
+    },
+    'uwot' = {
+      if (is.list(x = object)) {
+        umap(
+          X = NULL,
+          nn_method = object,
+          n_threads = nbrOfWorkers(),
+          n_components = as.integer(x = n.components),
+          metric = metric,
+          n_epochs = n.epochs,
+          learning_rate = learning.rate,
+          min_dist = min.dist,
+          spread = spread,
+          set_op_mix_ratio = set.op.mix.ratio,
+          local_connectivity = local.connectivity,
+          repulsion_strength = repulsion.strength,
+          negative_sample_rate = negative.sample.rate,
+          a = a,
+          b = b,
+          fast_sgd = uwot.sgd,
+          verbose = verbose,
+          ret_model = return.model
+        )
+      } else {
+        umap(
+          X = object,
+          n_threads = nbrOfWorkers(),
+          n_neighbors = as.integer(x = n.neighbors),
+          n_components = as.integer(x = n.components),
+          metric = metric,
+          n_epochs = n.epochs,
+          learning_rate = learning.rate,
+          min_dist = min.dist,
+          spread = spread,
+          set_op_mix_ratio = set.op.mix.ratio,
+          local_connectivity = local.connectivity,
+          repulsion_strength = repulsion.strength,
+          negative_sample_rate = negative.sample.rate,
+          a = a,
+          b = b,
+          fast_sgd = uwot.sgd,
+          verbose = verbose,
+          ret_model = return.model
+        )
+      }
+    },
+    'uwot-predict' = {
+      if (metric == 'correlation') {
+        warning(
+          "UWOT does not implement the correlation metric, using cosine instead",
+          call. = FALSE,
+          immediate. = TRUE
+        )
+        metric <- 'cosine'
+      }
+      if (is.null(x = reduction.model) || !inherits(x = reduction.model, what = 'DimReduc')) {
+        stop(
+          "If running projection UMAP, please pass a DimReduc object with the model stored to reduction.model.",
+          call. = FALSE
+        )
+      }
+      model <- Misc(
+        object = reduction.model,
+        slot = "model"
+      )
+      # add num_precomputed_nns to <v0.1.13 uwot models to prevent errors with newer versions of uwot
+      if (!"num_precomputed_nns" %in% names(model)) {
+        model$num_precomputed_nns <- 1
+      }
+      if (length(x = model) == 0) {
+        stop(
+          "The provided reduction.model does not have a model stored. Please try running umot-learn on the object first",
+          call. = FALSE
+        )
+      }
+      if (!"num_precomputed_nns" %in% names(x = model)) {
+        model$num_precomputed_nns <- 0
+      }
+      if (is.list(x = object)) {
+        if (ncol(object$idx) != model$n_neighbors) {
+          warning("Number of neighbors between query and reference ",
+                  "is not equal to the number of neighbors within reference")
+          model$n_neighbors <- ncol(object$idx)
+        }
+        umap_transform(
+          X = NULL,
+          nn_method = object,
+          model = model,
+          n_threads = nbrOfWorkers(),
+          n_epochs = n.epochs,
+          verbose = verbose
+        )
+      } else {
+        umap_transform(
+          X = object,
+          model = model,
+          n_threads = nbrOfWorkers(),
+          n_epochs = n.epochs,
+          verbose = verbose
+        )
+      }
+    },
+    stop("Unknown umap method: ", umap.method, call. = FALSE)
+  )
+  if (return.model) {
+    umap.output$nn_index <- NULL
+    umap.model <- umap.output
+    umap.output <- umap.output$embedding
+  }
+  colnames(x = umap.output) <- paste0(reduction.key, 1:ncol(x = umap.output))
+  if (inherits(x = object, what = 'dist')) {
+    rownames(x = umap.output) <- attr(x = object, "Labels")
+  } else if (is.list(x = object)) {
+    rownames(x = umap.output) <- rownames(x = object$idx)
+  } else {
+    rownames(x = umap.output) <- rownames(x = object)
+  }
+  umap.reduction <- CreateDimReducObject(
+    embeddings = umap.output,
+    key = reduction.key,
+    assay = assay,
+    global = TRUE
+  )
+  if (return.model) {
+    Misc(umap.reduction, slot = "model") <- umap.model
+  }
+  return(umap.reduction)
+}
+
+
+### NOTE:
+
+# You can run the above like this to perform UMAP from area-normalized counts
+
+# dims=1:30
+# reduction="pca"
+# data.use <- Embeddings(object[[reduction]])[, dims]
+# 
+# umap <- RunUMAP.default(object=data.use,
+#                            reduction.key="umap_",
+#                            assay="Xenium"
+# )
+#
+# object[["umap"]] <- umap
+
+
+#################################################

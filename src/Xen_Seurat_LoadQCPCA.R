@@ -21,6 +21,11 @@
 #     - min_nFeature: Minimum number of unique genes per cell
 #     - min_cellarea: Minimum cell area
 #     - max_cellarea: Maximum cell area
+#     - normalization_method: Parameter for normalizing raw count data
+#         Options include:
+#           - Log: Standard seurat LogNormalize formula. Uses log of count/library size
+#           - LogArea: Custom normalization for spatial data. Replaces library size demoninator in LogNormalize with cell area. Generates count intensity or counts / 100 um
+#           - SCT: SC Transform normalization. Fits a neg bionomial model for variance-stabilized counts. Uses library size. See Seruat documentaiton.
 #     - integration_method: Parameter for IntegrateLayers (Seurat v5) specifying what method to be used for integration. 
 #          Options include: 
 #           - None: No integration method is performed, just simple concatenation
@@ -39,7 +44,7 @@
 #     - output/pipeline/pca/joint_unintegrated dim loading and pca plots for several PCs
 #     - Rsession info .txt file
 
-# Last updated: 10Oct2024
+# Last updated: 13Dec2024
 # Author: jrose
 #################################################
 #Set up
@@ -47,7 +52,7 @@
 library(Seurat)
 library(tidyverse)
 library(future)
-library(clustree)
+#library(clustree)
 #library(spacexr)
 #library(scBubbletree)
 library(nanoparquet)
@@ -69,6 +74,11 @@ min_nCount = 40 #--PARAM--
 min_nFeature = 15 #--PARAM--
 min_cellarea = 10 #--PARAM--
 max_cellarea = 200 #--PARAM--
+
+normalization_method = "LogArea" #--PARAM-- Other options: "SCT"
+if (!normalization_method %in% c("Log","LogArea", "SCT")){
+  stop("Please select either, Log, LogArea or SCT for normalization")
+}
 
 integration_method = "None" #--PARAM-- Other options: "None", "Seurat_CCA", "harmony"
 if (!integration_method %in% c("None", "Seurat_RPCA", "Seurat_CCA", "harmony")){
@@ -165,9 +175,24 @@ if (integration_method=="None"){
 #################################################
 #Module 5 normalization
 
-obj.full <- SCTransform(obj.full, assay = "Xenium")
+if (normalization_method == "SCT"){
+  obj.full <- SCTransform(obj.full, assay = "Xenium")
+} else if (normalization_method == "LogArea") {
+  obj.full <- LogAreaNormalize(obj.full, assay="Xenium", scale.factor=100) #Custom function from Xen_Seurat_functions.R
+} else if (normalization_method == "Log") {
+  obj.full <- LogNormalize(obj.full, assay="Xenium")
+} else {
+  stop("Please select either LogArea or SCT normalization")
+}
 
-# I plan on expanding options here later...cell area based normalization?
+# Scaling and Finding HVG 
+if (normalization_method =="LogArea" | normalization_method =="Log") {
+  obj.full <- ScaleData(obj.full)
+  obj.full <- FindVariableFeatures(obj.full, assay="Xenium")
+  
+  HVGplot <- VariableFeaturePlot(obj.full)
+  ggsave(here(outdir,"qc/plots", paste0(experiment_name, "_","hvg.png")), plot = HVGplot)
+}
 
 #################################################
 #Module 6 dimension reduction
@@ -192,22 +217,22 @@ PCAplots(obj.full, ndim=10, outdir=PCA_outdir)
 # Note: Will need to change if normalization method changes
 
 if (integration_method=="Seurat_RPCA"){
-  obj.full <- IntegrateLayers(object = obj.full, method = RPCAIntegration, orig.reduction = "pca", new.reduction = "integrated.rpca", normalization.method="SCT",
+  obj.full <- IntegrateLayers(object = obj.full, method = RPCAIntegration, orig.reduction = "pca", new.reduction = "integrated.rpca", normalization.method="LogNormalize",
                   verbose = TRUE)
 } else if (integration_method=="harmony"){
-  obj.full <- IntegrateLayers(object = obj.full, method = HarmonyIntegration, orig.reduction = "pca", new.reduction = "integrated.harm", normalization.method="SCT",
+  obj.full <- IntegrateLayers(object = obj.full, method = HarmonyIntegration, orig.reduction = "pca", new.reduction = "integrated.harm", normalization.method="LogNormalize",
                               verbose = TRUE)
 } else if (integration_method=="Seurat_CCA"){
-  obj.full <- IntegrateLayers(object = obj.full, method = CCAIntegration, orig.reduction = "pca", new.reduction = "integrated.CCA", normalization.method="SCT",
+  obj.full <- IntegrateLayers(object = obj.full, method = CCAIntegration, orig.reduction = "pca", new.reduction = "integrated.CCA", normalization.method="LogNormalize",
                               verbose = TRUE)
 }
 
 #################################################
 #Save output
-
-saveRDS(obj.full, file=here(outdir, "pipeline/objs", paste0(experiment_name,"_","int-",integration_method, "_", "scTrans_PCA.rds")))
+print(paste0("Saving output", "--", Sys.time()))
+saveRDS(obj.full, file=here(outdir, "pipeline/objs", paste0(experiment_name,"_","int-",integration_method, "_", normalization_method,"_", "PCA.rds")))
 
 #################################################
 #Session Info
-
+print(paste0("Script complete", "--", Sys.time()))
 capture.output(sessionInfo(), file=here(outdir, "pipeline",paste0("Rsession.info.LoadQCPCA.",gsub("\\D", "", Sys.time()), ".txt")))
