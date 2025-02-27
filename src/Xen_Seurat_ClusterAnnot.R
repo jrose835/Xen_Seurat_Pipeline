@@ -53,7 +53,7 @@ plan("multisession", workers=10)
 #Inputs & Parameters
 
 indir <- "output/pipeline/objs" #--INPUT-- Note: If you used LoadQCPCA.R to produce you may not need to change
-infile <- "Abbie_lung_int-None_scTrans_PCA.rds" #--INPUT--
+infile <- "Abbie_lung_int-None_LogArea_PCA.rds" #--INPUT--
 input_obj_path <- here(indir, infile) 
 
 experiment_name <- "Abbie_lung" #--INPUT--
@@ -133,5 +133,5 @@ saveRDS(obj, file=here(outdir, "pipeline/objs", outfile))
 
 #################################################
 #Session Info
-
+print(paste0("Script complete", "--", Sys.time()))
 capture.output(sessionInfo(), file=here(outdir, "pipeline",paste0("Rsession.info.ClusterAnnot.",gsub("\\D", "", Sys.time()), ".txt")))
